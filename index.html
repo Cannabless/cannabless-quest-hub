@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CannaBless Quest Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+<!-- Firebase (compat for GitHub Pages) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: radial-gradient(circle at top, #0b1f16, #020504);
+  color: #eafff3;
+  text-align: center;
+}
+.container {
+  max-width: 420px;
+  margin: auto;
+  padding: 20px;
+}
+button {
+  background: linear-gradient(90deg,#3cff9a,#00ffcc);
+  border: none;
+  border-radius: 14px;
+  padding: 12px 20px;
+  font-weight: 800;
+  cursor: pointer;
+  margin: 8px;
+}
+canvas {
+  background: #081f14;
+  border-radius: 16px;
+  display: block;
+  margin: 20px auto;
+}
+.wallet {
+  word-break: break-all;
+  font-weight: bold;
+  color: #9bffd1;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>🌿 CannaBless Quest Hub</h1>
+
+  <button onclick="connectWallet()">🔐 Connect Wallet</button>
+  <div id="wallet" class="wallet">Not connected</div>
+
+  <h3>XP: <span id="xp">0</span></h3>
+
+  <button onclick="startGame()">🎮 Start Flappy Coin</button>
+
+  <canvas id="game" width="360" height="520"></canvas>
+
+  <h3>🏆 Flappy Leaderboard</h3>
+  <div id="leaderboard"></div>
+</div>
+
+<script>
+/* 🔥 FIREBASE */
+firebase.initializeApp({
+  apiKey: "AIzaSyDVFXgUOvsJ2sUKHAg3MRod1NlGQgEve7I",
+  authDomain: "cannabless-quest-hub.firebaseapp.com",
+  databaseURL: "https://cannabless-quest-hub-default-rtdb.firebaseio.com",
+  projectId: "cannabless-quest-hub"
+});
+const db = firebase.database();
+
+/* 🧠 STATE */
+let wallet = null;
+let xp = 0;
+
+/* 🔐 WALLET CONNECT (DESKTOP + MOBILE) */
+async function connectWallet() {
+  if (window.solana && window.solana.isPhantom) {
+    const res = await window.solana.connect();
+    wallet = res.publicKey.toString();
+    onWalletConnected();
+  } else {
+    // Mobile deep link
+    window.location.href =
+      "https://phantom.app/ul/v1/connect?app_url=" +
+      encodeURIComponent(location.href);
+  }
+}
+
+function onWalletConnected() {
+  document.getElementById("wallet").innerText = wallet;
+  db.ref("players/" + wallet).once("value").then(s => {
+    if (s.exists()) xp = s.val().xp || 0;
+    document.getElementById("xp").innerText = xp;
+  });
+}
+
+/* 🎮 FLAPPY COIN GAME */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let bird, pipes, gravity, velocity, score, playing;
+
+function resetGame() {
+  bird = { x: 60, y: 250, r: 12 };
+  pipes = [];
+  gravity = 0.6;
+  velocity = 0;
+  score = 0;
+  playing = true;
+}
+
+function startGame() {
+  resetGame();
+  loop();
+}
+
+function jump() {
+  if (playing) velocity = -8;
+}
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") jump();
+});
+canvas.addEventListener("touchstart", jump);
+canvas.addEventListener("mousedown", jump);
+
+function loop() {
+  if (!playing) return;
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  velocity += gravity;
+  bird.y += velocity;
+
+  if (pipes.length === 0 || pipes[pipes.length - 1].x < 200) {
+    const gap = 140;
+    const top = Math.random() * 200 + 40;
+    pipes.push({ x: 360, top, gap });
+  }
+
+  pipes.forEach(p => p.x -= 2);
+
+  pipes = pipes.filter(p => p.x > -60);
+
+  pipes.forEach(p => {
+    ctx.fillRect(p.x, 0, 40, p.top);
+    ctx.fillRect(p.x, p.top + p.gap, 40, 520);
+
+    if (
+      bird.x + bird.r > p.x &&
+      bird.x - bird.r < p.x + 40 &&
+      (bird.y - bird.r < p.top ||
+       bird.y + bird.r > p.top + p.gap)
+    ) endGame();
+  });
+
+  ctx.beginPath();
+  ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI * 2);
+  ctx.fillStyle = "#6CFFB5";
+  ctx.fill();
+
+  if (bird.y > canvas.height || bird.y < 0) endGame();
+
+  score++;
+  ctx.fillStyle = "#fff";
+  ctx.fillText("Score: " + score, 10, 20);
+
+  requestAnimationFrame(loop);
+}
+
+function endGame() {
+  playing = false;
+  xp += Math.floor(score / 10);
+  document.getElementById("xp").innerText = xp;
+
+  if (wallet) {
+    db.ref("players/" + wallet).set({
+      xp,
+      flappy: score,
+      updated: Date.now()
+    });
+  }
+  loadLeaderboard();
+}
+
+/* 🏆 LEADERBOARD */
+function loadLeaderboard() {
+  db.ref("players").orderByChild("flappy").limitToLast(5).once("value", s => {
+    let html = "";
+    s.forEach(c => {
+      html = `<div>${c.key.slice(0,4)}… ${c.val().flappy || 0}</div>` + html;
+    });
+    document.getElementById("leaderboard").innerHTML = html;
+  });
+}
+</script>
+</body>
+</html>
