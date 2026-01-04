@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CannaBless Quest Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Firebase (compat – required for embeds) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+body {
+  background: radial-gradient(circle at top, #0b1f16, #020504);
+  font-family: 'Segoe UI', sans-serif;
+  color: #eafff3;
+  margin: 0;
+  padding: 20px;
+}
+.container {
+  max-width: 1100px;
+  margin: auto;
+  background: rgba(8, 35, 22, 0.97);
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: 0 0 50px rgba(0,255,160,.35);
+}
+h1, h2 {
+  color: #6CFFB5;
+}
+.section {
+  margin-top: 35px;
+}
+button {
+  background: linear-gradient(90deg, #3cff9a, #00ffcc);
+  border: none;
+  border-radius: 16px;
+  padding: 12px 24px;
+  font-weight: 900;
+  cursor: pointer;
+  color: #003d22;
+}
+button:disabled {
+  opacity: 0.4;
+}
+.wallet {
+  font-weight: 800;
+  color: #9bffd1;
+  word-break: break-all;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+.table th, .table td {
+  padding: 12px;
+  border-bottom: 1px solid #1b5a40;
+  text-align: center;
+}
+canvas {
+  background: #081a12;
+  border-radius: 12px;
+  display: block;
+  margin: 20px auto;
+}
+.footer {
+  margin-top: 40px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>🗺️ CannaBless Quest Hub</h1>
+<p>Community-powered participation • Wallet-based identity • No guarantees</p>
+
+<!-- WALLET -->
+<div class="section">
+  <h2>🔐 Wallet Login</h2>
+  <button onclick="connectWallet()">Connect Phantom Wallet</button>
+  <p class="wallet" id="walletDisplay">Not connected</p>
+</div>
+
+<!-- STATS -->
+<div class="section">
+  <h2>📊 Your Stats</h2>
+  XP: <b id="xp">0</b> | Level: <b id="level">1</b>
+</div>
+
+<!-- QUEST -->
+<div class="section">
+  <h2>⚔️ Community Quest</h2>
+  <p>Cooldown: 60 seconds per wallet</p>
+  <button id="questBtn" onclick="completeQuest()">Complete Quest (+20 XP)</button>
+</div>
+
+<!-- FLAPPY COIN -->
+<div class="section">
+  <h2>🕊️ Flappy Coin Trial</h2>
+  <p>Score XP by surviving. Best score saved.</p>
+  <canvas id="game" width="300" height="400"></canvas>
+  <button onclick="startGame()">Start Game</button>
+</div>
+
+<!-- XP LEADERBOARD -->
+<div class="section">
+  <h2>🏆 Global XP Leaderboard</h2>
+  <table class="table">
+    <thead>
+      <tr><th>#</th><th>Wallet</th><th>XP</th><th>Level</th></tr>
+    </thead>
+    <tbody id="xpBoard"></tbody>
+  </table>
+</div>
+
+<!-- FLAPPY LEADERBOARD -->
+<div class="section">
+  <h2>🕊️ Flappy Coin Leaderboard</h2>
+  <table class="table">
+    <thead>
+      <tr><th>#</th><th>Wallet</th><th>Best Score</th></tr>
+    </thead>
+    <tbody id="flappyBoard"></tbody>
+  </table>
+</div>
+
+<div class="footer">
+XP, scores, and leaderboards are informational only and may reset or change.
+</div>
+</div>
+
+<script>
+/* 🔥 FIREBASE CONFIG */
+firebase.initializeApp({
+  apiKey: "AIzaSyDVFXgUOvsJ2sUKHAg3MRod1NlGQgEve7I",
+  authDomain: "cannabless-quest-hub.firebaseapp.com",
+  databaseURL: "https://cannabless-quest-hub-default-rtdb.firebaseio.com",
+  projectId: "cannabless-quest-hub",
+  storageBucket: "cannabless-quest-hub.appspot.com",
+  messagingSenderId: "517725231070",
+  appId: "1:517725231070:web:54f435cf048e60bddbaf4f"
+});
+const db = firebase.database();
+
+/* STATE */
+let wallet = null;
+let xp = 0;
+let level = 1;
+let lastQuest = 0;
+let bestScore = 0;
+
+/* WALLET CONNECT + SIGN */
+async function connectWallet() {
+  if (!window.solana || !window.solana.isPhantom) {
+    alert("Phantom Wallet required");
+    return;
+  }
+
+  const resp = await window.solana.connect();
+  wallet = resp.publicKey.toString();
+
+  const msg = `Login to CannaBless\n${Date.now()}`;
+  const encoded = new TextEncoder().encode(msg);
+  await window.solana.signMessage(encoded, "utf8");
+
+  document.getElementById("walletDisplay").innerText =
+    wallet.slice(0,4)+"..."+wallet.slice(-4);
+
+  loadPlayer();
+}
+
+/* LOAD PLAYER */
+function loadPlayer() {
+  db.ref("players/"+wallet).once("value").then(snap=>{
+    if (snap.exists()) {
+      xp = snap.val().xp || 0;
+      level = snap.val().level || 1;
+      bestScore = snap.val().bestScore || 0;
+      lastQuest = snap.val().lastQuest || 0;
+    }
+    updateUI();
+  });
+}
+
+/* QUEST WITH COOLDOWN */
+function completeQuest() {
+  if (!wallet) return alert("Connect wallet first");
+
+  if (Date.now() - lastQuest < 60000)
+    return alert("Quest on cooldown");
+
+  lastQuest = Date.now();
+  xp += 20;
+  level = Math.floor(xp / 100) + 1;
+  syncPlayer();
+  updateUI();
+}
+
+/* SAVE PLAYER */
+function syncPlayer() {
+  db.ref("players/"+wallet).set({
+    xp, level, bestScore, lastQuest, updated: Date.now()
+  });
+}
+
+/* UI */
+function updateUI() {
+  document.getElementById("xp").innerText = xp;
+  document.getElementById("level").innerText = level;
+}
+
+/* LEADERBOARDS */
+db.ref("players").on("value", snap=>{
+  const data = snap.val() || {};
+  const arr = Object.entries(data);
+
+  const xpSorted = [...arr].sort((a,b)=>b[1].xp-a[1].xp).slice(0,10);
+  document.getElementById("xpBoard").innerHTML = xpSorted.map((e,i)=>`
+    <tr><td>${i+1}</td><td>${e[0].slice(0,4)}...${e[0].slice(-4)}</td>
+    <td>${e[1].xp}</td><td>${e[1].level}</td></tr>`).join("");
+
+  const flappySorted = [...arr].sort((a,b)=>(b[1].bestScore||0)-(a[1].bestScore||0)).slice(0,10);
+  document.getElementById("flappyBoard").innerHTML = flappySorted.map((e,i)=>`
+    <tr><td>${i+1}</td><td>${e[0].slice(0,4)}...${e[0].slice(-4)}</td>
+    <td>${e[1].bestScore||0}</td></tr>`).join("");
+});
+
+/* FLAPPY COIN */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let y = 200, vel = 0, score = 0, playing = false;
+
+function startGame() {
+  y = 200; vel = 0; score = 0; playing = true;
+  requestAnimationFrame(loop);
+}
+
+canvas.onclick = ()=> vel = -6;
+
+function loop() {
+  if (!playing) return;
+  ctx.clearRect(0,0,300,400);
+  vel += 0.4; y += vel;
+  ctx.fillStyle="#6CFFB5";
+  ctx.beginPath(); ctx.arc(150,y,12,0,Math.PI*2); ctx.fill();
+  score++;
+  if (y<0||y>400) endGame();
+  requestAnimationFrame(loop);
+}
+
+function endGame() {
+  playing = false;
+  if (wallet && score > bestScore) {
+    bestScore = score;
+    syncPlayer();
+  }
+}
+</script>
+</body>
+</html>
