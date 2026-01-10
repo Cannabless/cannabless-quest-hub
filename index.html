@@ -1,169 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>CannaBless Quest Hub</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CannaBless Quest Hub</title>
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: radial-gradient(circle at top, #0f2d1f, #050b08);
-      color: #eafff3;
-      font-family: 'Inter', sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
+<style>
+* { box-sizing: border-box; }
 
-    .container {
-      width: 100%;
-      max-width: 900px;
-      background: rgba(0, 0, 0, 0.55);
-      border: 1px solid rgba(34, 197, 94, 0.35);
-      border-radius: 16px;
-      padding: 40px;
-      box-shadow: 0 0 60px rgba(34, 197, 94, 0.25);
-    }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #0f2d1f, #050b08);
+  font-family: 'Inter', sans-serif;
+  color: #eafff3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-    h1 {
-      font-family: 'Orbitron', sans-serif;
-      text-align: center;
-      color: #22c55e;
-      letter-spacing: 2px;
-      margin-bottom: 10px;
-    }
+.container {
+  width: 95%;
+  max-width: 900px;
+  padding: 32px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(34,197,94,0.35);
+  box-shadow: 0 0 60px rgba(34,197,94,0.25);
+}
 
-    p {
-      text-align: center;
-      opacity: 0.85;
-    }
+h1 {
+  font-family: 'Orbitron', sans-serif;
+  text-align: center;
+  color: #22c55e;
+  letter-spacing: 2px;
+}
 
-    .wallet-box {
-      display: flex;
-      justify-content: center;
-      margin: 30px 0;
-    }
+p {
+  text-align: center;
+  opacity: 0.85;
+}
 
-    button {
-      padding: 14px 28px;
-      font-size: 16px;
-      font-weight: 700;
-      border-radius: 999px;
-      border: none;
-      cursor: pointer;
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: #042f1a;
-      box-shadow: 0 0 25px rgba(34, 197, 94, 0.6);
-      transition: all 0.25s ease;
-    }
+button {
+  width: 100%;
+  max-width: 340px;
+  margin: 24px auto;
+  display: block;
+  padding: 16px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #052e1b;
+  box-shadow: 0 0 30px rgba(34,197,94,0.6);
+}
 
-    button:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 40px rgba(34, 197, 94, 0.9);
-    }
+.status {
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.8;
+}
 
-    .status {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 14px;
-      opacity: 0.8;
-    }
+.dashboard {
+  display: none;
+  margin-top: 32px;
+}
 
-    .dashboard {
-      margin-top: 40px;
-      display: none;
-      border-top: 1px solid rgba(34, 197, 94, 0.2);
-      padding-top: 30px;
-    }
-
-    .card {
-      background: rgba(0,0,0,0.4);
-      border: 1px solid rgba(34, 197, 94, 0.25);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-
-    .card h3 {
-      margin-top: 0;
-      color: #22c55e;
-    }
-  </style>
+.card {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.card h3 {
+  margin-top: 0;
+  color: #22c55e;
+}
+</style>
 </head>
 
 <body>
 
-  <div class="container">
-    <h1>CannaBless Quest Hub</h1>
-    <p>Connect your wallet to unlock holder rewards, quests, and NFT perks</p>
+<div class="container">
+  <h1>CannaBless Quest Hub</h1>
+  <p>Connect any Solana wallet to unlock rewards</p>
 
-    <!-- 🔥 THIS IS THE BUTTON WITH THE ID -->
-    <div class="wallet-box">
-      <button id="connectWallet">Connect Phantom Wallet</button>
+  <!-- UNIVERSAL CONNECT -->
+  <button id="connectBtn">Connect Wallet</button>
+
+  <div class="status" id="status">Wallet not connected</div>
+
+  <div class="dashboard" id="dashboard">
+    <div class="card">
+      <h3>Wallet</h3>
+      <p id="walletAddress"></p>
     </div>
-
-    <div class="status" id="statusText">
-      Wallet not connected
+    <div class="card">
+      <h3>Holder Tier</h3>
+      <p>Loading…</p>
     </div>
-
-    <!-- Dashboard -->
-    <div class="dashboard" id="dashboard">
-      <div class="card">
-        <h3>Holder Status</h3>
-        <p id="holderStatus">Checking...</p>
-      </div>
-
-      <div class="card">
-        <h3>Quest Progress</h3>
-        <p>Coming online 🚀</p>
-      </div>
-
-      <div class="card">
-        <h3>NFT Rewards</h3>
-        <p>Mint access pending 🌱</p>
-      </div>
+    <div class="card">
+      <h3>Rewards</h3>
+      <p>Coming online 🌱</p>
     </div>
   </div>
+</div>
 
-  <!-- 🔌 WALLET SCRIPT -->
-  <script>
-    const connectBtn = document.getElementById("connectWallet");
-    const statusText = document.getElementById("statusText");
-    const dashboard = document.getElementById("dashboard");
+<!-- SOLANA WALLET STANDARD -->
+<script>
+const connectBtn = document.getElementById("connectBtn");
+const statusText = document.getElementById("status");
+const dashboard = document.getElementById("dashboard");
+const walletText = document.getElementById("walletAddress");
 
-    async function connectWallet() {
-      if ("solana" in window) {
-        const provider = window.solana;
-
-        if (provider.isPhantom) {
-          try {
-            const resp = await provider.connect();
-            const wallet = resp.publicKey.toString();
-
-            connectBtn.innerText = wallet.slice(0, 4) + "..." + wallet.slice(-4);
-            connectBtn.style.background = "#22c55e";
-            statusText.innerText = "Wallet Connected";
-            dashboard.style.display = "block";
-
-            console.log("Connected wallet:", wallet);
-          } catch (err) {
-            console.error("Connection rejected", err);
-          }
-        } else {
-          window.open("https://phantom.app/", "_blank");
-        }
-      } else {
-        alert("Phantom Wallet not detected");
-        window.open("https://phantom.app/", "_blank");
-      }
+async function connectWallet() {
+  try {
+    if (!window.solana && !window.solana?.connect) {
+      alert("No Solana wallet detected. Please open in a wallet browser.");
+      return;
     }
 
-    connectBtn.addEventListener("click", connectWallet);
-  </script>
+    const provider = window.solana;
+    const response = await provider.connect();
+    const pubkey = response.publicKey.toString();
+
+    connectBtn.innerText = pubkey.slice(0, 4) + "..." + pubkey.slice(-4);
+    statusText.innerText = "Wallet Connected";
+    walletText.innerText = pubkey;
+    dashboard.style.display = "block";
+
+    console.log("Wallet connected:", pubkey);
+
+  } catch (err) {
+    console.error("Wallet connection failed", err);
+  }
+}
+
+connectBtn.addEventListener("click", connectWallet);
+</script>
 
 </body>
 </html>
